@@ -9,10 +9,11 @@
     // Usage:
     // $ssm = new Sosumi('username', 'password');
     // $location_info = $ssm->locate();
-    // $ssm->sendMessage('A message to send');
+    // $ssm->sendMessage('Daisy, daisy...');
 
     class Sosumi
     {
+        public $devices;   // An array of all devices on this MobileMe account
         private $lastURL;  // The previous URL as visited by curl
         private $tmpFile;  // Where we store our cookies
         private $lsc;      // Associative array of Apple auth tokens
@@ -21,7 +22,8 @@
         public function __construct($mobile_me_username, $mobile_me_password)
         {
             $this->tmpFile = tempnam('/tmp', 'sosumi');
-            $this->lsc = array();
+            $this->lsc     = array();
+            $this->devices = array();
 
             // Load the HTML login page and also get the init cookies set
             $html = $this->curlGet("https://secure.me.com/account/");
@@ -43,7 +45,7 @@
             $html = $this->curlGet('https://secure.me.com/account/', $this->lastURL);
             $html = $this->curlGet($trampoline, $this->lastURL);
 
-            $this->getDeviceId();
+            $this->getDevices();
         }
 
         // Return a stdClass object of location information. Example...
@@ -62,9 +64,19 @@
         //     [date] => June 22, 2009
         //     [isAccurate] =>
         // )
-        public function locate()
+        public function locate($device_array = null)
         {
-            $post = 'postBody=' . '{"deviceId": "' . $this->deviceId .'", "deviceOsVersion": "7A341"}';
+            // Grab the first device is none is specified
+            if(is_null($device_array))
+            {
+                reset($this->devices);
+                $device_array = current($this->devices);
+            }
+
+            $arr = array('deviceId' => $device_array['deviceId'], 'deviceOsVersion' => $device_array['deviceOsVersion']);
+
+            $post = 'postBody=' . json_encode($arr);
+
             $headers = array('Accept: text/javascript, text/html, application/xml, text/xml, */*',
                              'X-Requested-With: XMLHttpRequest',
                              'X-Prototype-Version: 1.6.0.3',
@@ -77,14 +89,21 @@
         }
 
         // Send a message to the device with an optional alarm sound
-        public function sendMessage($msg, $alarm = false)
+        public function sendMessage($msg, $alarm = false, $device = null)
         {
-            $arr = array('deviceId' => $this->deviceId,
+            // Grab the first device is none is specified
+            if(is_null($device_array))
+            {
+                reset($this->devices);
+                $device_array = current($this->devices);
+            }
+
+            $arr = array('deviceId' => $device_array['deviceId'],
                          'message' => $msg,
                          'playAlarm' => $alarm ? 'Y' : 'N',
-                         'deviceType' => '4', // We need to
-                         'deviceClass' => '0', // not hardcode
-                         'deviceOsVersion' => '7A341'); // these values :-)
+                         'deviceType' => $device_array['deviceType'],
+                         'deviceClass' => $device_array['deviceClass'],
+                         'deviceOsVersion' => $device_array['deviceOsVersion']);
 
             $post = 'postBody=' . json_encode($arr);
 
@@ -107,9 +126,10 @@
             // left to the reader.
         }
 
-        // In theory, we should probably handle multiple device ID's per page, but I don't have multiple devices on my MobileMe
-        // account. Will soon, though.
-        private function getDeviceId()
+        // Grab the details for each device on the MobileMe account
+        // (We could also use this opportunity to parse out the last know lat/lng of the device
+        // and save a couple round trips in the future.)
+        private function getDevices()
         {
             $headers = array('Accept: text/javascript, text/html, application/xml, text/xml, */*',
                              'X-Requested-With: XMLHttpRequest',
@@ -125,9 +145,14 @@
                              'X-Mobileme-Isc: ' . $this->lsc['secure.me.com']);
             $html = $this->curlPost('https://secure.me.com/wo/WebObjects/DeviceMgmt.woa/?lang=en', null, 'https://secure.me.com/account/', $headers);
 
-            $this->deviceId = $this->match("/deviceIdMap.*?([a-f0-9]{40})/", $html, 1);
-
-            return $this->deviceId;
+            // Grab all of the devices
+            preg_match_all('/new Device\((.*?)\)/ms', $html, $matches);
+            for($i = 0; $i < count($matches[0]); $i++)
+            {
+                $values = str_replace("'", '', $matches[1][$i]);
+                list($unknown, $id, $type, $class, $os) = explode(',', $values);
+                $this->devices[$id] = array('deviceId' => $id, 'deviceType' => $type, 'deviceClass' => $class, 'deviceOsVersion' => $os);
+            }
         }
 
         private function curlGet($url, $referer = null, $headers = null)

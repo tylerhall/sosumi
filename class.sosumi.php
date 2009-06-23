@@ -1,0 +1,190 @@
+<?PHP
+
+    // Sosumi - a Find My iPhone web scraper.
+    //
+    // June 22, 2009
+    // Tyler Hall <tylerhall@gmail.com>
+    // http://github.com/tylerhall/sosumi/tree/master
+    //
+    // Usage:
+    // $ssm = new Sosumi('username', 'password');
+    // $location_info = $ssm->locate();
+    // $ssm->sendMessage('A message to send');
+
+    class Sosumi
+    {
+        private $lastURL;  // The previous URL as visited by curl
+        private $tmpFile;  // Where we store our cookies
+        private $lsc;      // Associative array of Apple auth tokens
+        private $deviceId; // The device ID to ping
+
+        public function __construct($mobile_me_username, $mobile_me_password)
+        {
+            $this->tmpFile = tempnam('/tmp', 'sosumi');
+            $this->lsc = array();
+
+            // Load the HTML login page and also get the init cookies set
+            $html = $this->curlGet("https://secure.me.com/account/");
+            $html = $this->curlGet("https://auth.apple.com/authenticate?service=DockStatus&reauthorize=Y&realm=primary-me&returnURL=&destinationUrl=/account&cancelURL=", $this->lastURL);
+
+            // Parse out the hidden fields
+            preg_match_all('!hidden.*?name=["\'](.*?)["\'].*?value=["\'](.*?)["\']!ms', $html, $hidden);
+
+            // Build the form post data
+            $post = '';
+            for($i = 0; $i < count($hidden[1]); $i++)
+                $post .= $hidden[1][$i] . '=' . urlencode($hidden[2][$i]) . '&';
+            $post  .= 'username=' . urlencode($mobile_me_username) . '&password=' . urlencode($mobile_me_password);
+
+            // Login
+            $action_url = $this->match('!action=["\'](.*?)["\']!ms', $html, 1);
+            $html = $this->curlPost('https://auth.apple.com/authenticate', $post, $this->lastURL);
+            $trampoline = 'https://secure.me.com/wo/WebObjects/DockStatus.woa/wa/trampoline' . substr($this->lastURL, strpos($this->lastURL, '?'));
+            $html = $this->curlGet('https://secure.me.com/account/', $this->lastURL);
+            $html = $this->curlGet($trampoline, $this->lastURL);
+
+            $this->getDeviceId();
+        }
+
+        // Return a stdClass object of location information. Example...
+        // stdClass Object
+        // (
+        //     [isLocationAvailable] => 1
+        //     [longitude] => -121.010392
+        //     [accuracy] => 47.421634
+        //     [time] => 9:24 PM
+        //     [isOldLocationResult] => 1
+        //     [isRecent] => 1
+        //     [statusString] => locate status available
+        //     [status] => 1
+        //     [isLocateFinished] =>
+        //     [latitude] => 38.319117
+        //     [date] => June 22, 2009
+        //     [isAccurate] =>
+        // )
+        public function locate()
+        {
+            $post = 'postBody=' . '{"deviceId": "' . $this->deviceId .'", "deviceOsVersion": "7A341"}';
+            $headers = array('Accept: text/javascript, text/html, application/xml, text/xml, */*',
+                             'X-Requested-With: XMLHttpRequest',
+                             'X-Prototype-Version: 1.6.0.3',
+                             'Content-Type: application/json; charset=UTF-8',
+                             'X-Mobileme-Version: 1.0',
+                             'X-Mobileme-Isc: ' . $this->lsc['secure.me.com']);
+            $html = $this->curlPost('https://secure.me.com/wo/WebObjects/DeviceMgmt.woa/wa/LocateAction/locateStatus', $post, 'https://secure.me.com/account/', $headers);
+            $json = json_decode(array_pop(explode("\n", $html)));
+            return $json;
+        }
+
+        // Send a message to the device with an optional alarm sound
+        public function sendMessage($msg, $alarm = false)
+        {
+            $arr = array('deviceId' => $this->deviceId,
+                         'message' => $msg,
+                         'playAlarm' => $alarm ? 'Y' : 'N',
+                         'deviceType' => '4', // We need to
+                         'deviceClass' => '0', // not hardcode
+                         'deviceOsVersion' => '7A341'); // these values :-)
+
+            $post = 'postBody=' . json_encode($arr);
+
+            $headers = array('Accept: text/javascript, text/html, application/xml, text/xml, */*',
+                             'X-Requested-With: XMLHttpRequest',
+                             'X-Prototype-Version: 1.6.0.3',
+                             'Content-Type: application/json; charset=UTF-8',
+                             'X-Mobileme-Version: 1.0',
+                             'X-Mobileme-Isc: ' . $this->lsc['secure.me.com']);
+
+            $html = $this->curlPost('https://secure.me.com/wo/WebObjects/DeviceMgmt.woa/wa/SendMessageAction/sendMessage', $post, 'https://secure.me.com/account/', $headers);
+
+            $json = json_decode(array_pop(explode("\n", $html)));
+            return ($json !== false) && isset($json->statusString) && ($json->statusString == 'message sent');
+        }
+
+        public function remoteWipe()
+        {
+            // Remotely wiping a device is an exercise best
+            // left to the reader.
+        }
+
+        // In theory, we should probably handle multiple device ID's per page, but I don't have multiple devices on my MobileMe
+        // account. Will soon, though.
+        private function getDeviceId()
+        {
+            $headers = array('Accept: text/javascript, text/html, application/xml, text/xml, */*',
+                             'X-Requested-With: XMLHttpRequest',
+                             'X-Prototype-Version: 1.6.0.3',
+                             'X-Mobileme-Version: 1.0',
+                             'X-Mobileme-Isc: ' . $this->lsc['secure.me.com']);
+            $html = $this->curlPost('https://secure.me.com/device_mgmt/en', null, 'https://secure.me.com/account/', $headers);
+
+            $headers = array('Accept: text/javascript, text/html, application/xml, text/xml, */*',
+                             'X-Requested-With: XMLHttpRequest',
+                             'X-Prototype-Version: 1.6.0.3',
+                             'X-Mobileme-Version: 1.0',
+                             'X-Mobileme-Isc: ' . $this->lsc['secure.me.com']);
+            $html = $this->curlPost('https://secure.me.com/wo/WebObjects/DeviceMgmt.woa/?lang=en', null, 'https://secure.me.com/account/', $headers);
+
+            $this->deviceId = $this->match("/deviceIdMap.*?([a-f0-9]{40})/", $html, 1);
+
+            return $this->deviceId;
+        }
+
+        private function curlGet($url, $referer = null, $headers = null)
+        {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $this->tmpFile);
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $this->tmpFile);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_7; en-us) AppleWebKit/530.18 (KHTML, like Gecko) Version/4.0.1 Safari/530.18");
+            if(!is_null($referer)) curl_setopt($ch, CURLOPT_REFERER, $referer);
+            if(!is_null($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+            curl_setopt($ch, CURLOPT_HEADER, true);
+            // curl_setopt($ch, CURLOPT_VERBOSE, true);
+
+            $html = curl_exec($ch);
+            $this->lastURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+
+            preg_match_all('/[li]sc-(.*?)=([a-f0-9]+);/i', $html, $matches);
+            for($i = 0; $i < count($matches[0]); $i++)
+                $this->lsc[$matches[1][$i]] = $matches[2][$i];
+
+            return $html;
+        }
+
+        private function curlPost($url, $post_vars = null, $referer = null, $headers = null)
+        {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $this->tmpFile);
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $this->tmpFile);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_7; en-us) AppleWebKit/530.18 (KHTML, like Gecko) Version/4.0.1 Safari/530.18");
+            if(!is_null($referer)) curl_setopt($ch, CURLOPT_REFERER, $referer);
+            curl_setopt($ch, CURLOPT_POST, true);
+            if(!is_null($post_vars)) curl_setopt($ch, CURLOPT_POSTFIELDS, $post_vars);
+            if(!is_null($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+            curl_setopt($ch, CURLOPT_HEADER, true);
+            // curl_setopt($ch, CURLOPT_VERBOSE, true);
+
+            $html = curl_exec($ch);
+            $this->lastURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+
+            // preg_match_all('/Set-Cookie:(.*)/i', $html, $matches);
+            preg_match_all('/[li]sc-(.*?)=([a-f0-9]+);/i', $html, $matches);
+            for($i = 0; $i < count($matches[0]); $i++)
+                $this->lsc[$matches[1][$i]] = $matches[2][$i];
+
+            return $html;
+        }
+
+        private function match($regex, $str, $i = 0)
+        {
+            return preg_match($regex, $str, $match) == 1 ? $match[$i] : false;
+        }
+    }

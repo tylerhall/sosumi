@@ -10,6 +10,9 @@
     // $ssm = new Sosumi('username', 'password');
     // $location_info = $ssm->locate();
     // $ssm->sendMessage('Daisy, daisy...');
+    //
+    // TODO: Need to see how many HTTP requests we can remove. The current
+    // implementation hasn't been minified yet.
 
     class Sosumi
     {
@@ -64,16 +67,16 @@
         //     [date] => June 22, 2009
         //     [isAccurate] =>
         // )
-        public function locate($device_array = null)
+        public function locate($the_device = null)
         {
             // Grab the first device is none is specified
-            if(is_null($device_array))
+            if(is_null($the_device))
             {
                 reset($this->devices);
-                $device_array = current($this->devices);
+                $the_device = current($this->devices);
             }
 
-            $arr = array('deviceId' => $device_array['deviceId'], 'deviceOsVersion' => $device_array['deviceOsVersion']);
+            $arr = array('deviceId' => $the_device['deviceId'], 'deviceOsVersion' => $the_device['deviceOsVersion']);
 
             $post = 'postBody=' . json_encode($arr);
 
@@ -92,18 +95,18 @@
         public function sendMessage($msg, $alarm = false, $device = null)
         {
             // Grab the first device is none is specified
-            if(is_null($device_array))
+            if(is_null($the_device))
             {
                 reset($this->devices);
-                $device_array = current($this->devices);
+                $the_device = current($this->devices);
             }
 
-            $arr = array('deviceId' => $device_array['deviceId'],
+            $arr = array('deviceId' => $the_device['deviceId'],
                          'message' => $msg,
                          'playAlarm' => $alarm ? 'Y' : 'N',
-                         'deviceType' => $device_array['deviceType'],
-                         'deviceClass' => $device_array['deviceClass'],
-                         'deviceOsVersion' => $device_array['deviceOsVersion']);
+                         'deviceType' => $the_device['deviceType'],
+                         'deviceClass' => $the_device['deviceClass'],
+                         'deviceOsVersion' => $the_device['deviceOsVersion']);
 
             $post = 'postBody=' . json_encode($arr);
 

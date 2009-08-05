@@ -92,7 +92,7 @@
         }
 
         // Send a message to the device with an optional alarm sound
-        public function sendMessage($msg, $alarm = false, $device = null)
+        public function sendMessage($msg, $alarm = false, $the_device = null)
         {
             // Grab the first device is none is specified
             if(is_null($the_device))

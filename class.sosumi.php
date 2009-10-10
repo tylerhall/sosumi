@@ -29,8 +29,7 @@
             $this->devices = array();
 
             // Load the HTML login page and also get the init cookies set
-            $html = $this->curlGet("https://secure.me.com/account/");
-            $html = $this->curlGet("https://auth.apple.com/authenticate?service=DockStatus&reauthorize=Y&realm=primary-me&returnURL=&destinationUrl=/account&cancelURL=", $this->lastURL);
+            $html = $this->curlGet("https://auth.me.com/authenticate?service=account&ssoNamespace=primary-me&reauthorize=Y&returnURL=aHR0cHM6Ly9zZWN1cmUubWUuY29tL2FjY291bnQvI2ZpbmRteWlwaG9uZQ==&anchor=findmyiphone");
 
             // Parse out the hidden fields
             preg_match_all('!hidden.*?name=["\'](.*?)["\'].*?value=["\'](.*?)["\']!ms', $html, $hidden);
@@ -43,12 +42,20 @@
 
             // Login
             $action_url = $this->match('!action=["\'](.*?)["\']!ms', $html, 1);
-            $html = $this->curlPost('https://auth.apple.com/authenticate', $post, $this->lastURL);
-            $trampoline = 'https://secure.me.com/wo/WebObjects/DockStatus.woa/wa/trampoline' . substr($this->lastURL, strpos($this->lastURL, '?'));
+            $html = $this->curlPost('https://auth.me.com/authenticate', $post, $this->lastURL);
             $html = $this->curlGet('https://secure.me.com/account/', $this->lastURL);
-            $html = $this->curlGet($trampoline, $this->lastURL);
+
+            $headers = array('X-Mobileme-Version: 1.0');
+            $html = $this->curlGet('https://secure.me.com/wo/WebObjects/Account2.woa?lang=en&anchor=findmyiphone', $this->lastURL, $headers);
 
             $this->getDevices();
+	}
+
+        public function __destruct() {
+                if (file_exists($this->tmpFile))
+                {
+                        unlink($this->tmpFile);
+                }
         }
 
         // Return a stdClass object of location information. Example...
@@ -166,7 +173,7 @@
             curl_setopt($ch, CURLOPT_COOKIEJAR, $this->tmpFile);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_7; en-us) AppleWebKit/530.18 (KHTML, like Gecko) Version/4.0.1 Safari/530.18");
+            curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_1; en-us) AppleWebKit/531.9 (KHTML, like Gecko) Version/4.0.3 Safari/531.9");
             if(!is_null($referer)) curl_setopt($ch, CURLOPT_REFERER, $referer);
             if(!is_null($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
@@ -174,6 +181,13 @@
             // curl_setopt($ch, CURLOPT_VERBOSE, true);
 
             $html = curl_exec($ch);
+
+            if (curl_errno($ch) != 0)
+            {
+                  echo "error during get of '$url': " . curl_error($ch) . "\n";
+                  exit();
+            }
+
             $this->lastURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
             preg_match_all('/[li]sc-(.*?)=([a-f0-9]+);/i', $html, $matches);
@@ -191,7 +205,7 @@
             curl_setopt($ch, CURLOPT_COOKIEJAR, $this->tmpFile);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_5_7; en-us) AppleWebKit/530.18 (KHTML, like Gecko) Version/4.0.1 Safari/530.18");
+            curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_1; en-us) AppleWebKit/531.9 (KHTML, like Gecko) Version/4.0.3 Safari/531.9");
             if(!is_null($referer)) curl_setopt($ch, CURLOPT_REFERER, $referer);
             curl_setopt($ch, CURLOPT_POST, true);
             if(!is_null($post_vars)) curl_setopt($ch, CURLOPT_POSTFIELDS, $post_vars);
@@ -216,3 +230,4 @@
             return preg_match($regex, $str, $match) == 1 ? $match[$i] : false;
         }
     }
+?>

@@ -49,16 +49,15 @@
             $html = $this->curlGet('https://secure.me.com/wo/WebObjects/Account2.woa?lang=en&anchor=findmyiphone', $this->lastURL, $headers);
 
             $this->getDevices();
-	}
-
-        public function __destruct() {
-                if (file_exists($this->tmpFile))
-                {
-                        unlink($this->tmpFile);
-                }
         }
 
-        // Return a stdClass object of location information. Example...
+        public function __destruct()
+        {
+            if(file_exists($this->tmpFile))
+                unlink($this->tmpFile);
+        }
+
+        // Returns a stdClass object of location information. Example...
         // stdClass Object
         // (
         //     [isLocationAvailable] => 1
@@ -173,6 +172,7 @@
             curl_setopt($ch, CURLOPT_COOKIEJAR, $this->tmpFile);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_1; en-us) AppleWebKit/531.9 (KHTML, like Gecko) Version/4.0.3 Safari/531.9");
             if(!is_null($referer)) curl_setopt($ch, CURLOPT_REFERER, $referer);
             if(!is_null($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -182,10 +182,9 @@
 
             $html = curl_exec($ch);
 
-            if (curl_errno($ch) != 0)
+            if(curl_errno($ch) != 0)
             {
-                  echo "error during get of '$url': " . curl_error($ch) . "\n";
-                  exit();
+                throw new Exception("Error during GET of '$url': " . curl_error($ch));
             }
 
             $this->lastURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
@@ -205,6 +204,7 @@
             curl_setopt($ch, CURLOPT_COOKIEJAR, $this->tmpFile);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_1; en-us) AppleWebKit/531.9 (KHTML, like Gecko) Version/4.0.3 Safari/531.9");
             if(!is_null($referer)) curl_setopt($ch, CURLOPT_REFERER, $referer);
             curl_setopt($ch, CURLOPT_POST, true);
@@ -215,9 +215,14 @@
             // curl_setopt($ch, CURLOPT_VERBOSE, true);
 
             $html = curl_exec($ch);
+
+            if(curl_errno($ch) != 0)
+            {
+                throw new Exception("Error during POST of '$url': " . curl_error($ch));
+            }
+
             $this->lastURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
-            // preg_match_all('/Set-Cookie:(.*)/i', $html, $matches);
             preg_match_all('/[li]sc-(.*?)=([a-f0-9]+);/i', $html, $matches);
             for($i = 0; $i < count($matches[0]); $i++)
                 $this->lsc[$matches[1][$i]] = $matches[2][$i];
@@ -230,4 +235,3 @@
             return preg_match($regex, $str, $match) == 1 ? $match[$i] : false;
         }
     }
-?>

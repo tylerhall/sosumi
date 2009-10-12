@@ -16,6 +16,10 @@ INSTALL
 
 This script requires PHP 5.2 and the JSON extension, which should be included by default. PHP's CURL extension (with SSL support) is also required.
 
+EXAMPLES
+--------
+Two example scripts are included. The first one, `example.php` retrieves your current location and plots it on a Google map. It also allows you to send a push notification message and an optional alarm. The second script, `cron.php`, will grab your location and store it in a MySQL database, allowing you to track your position over time.
+
 UPDATES
 -------
 

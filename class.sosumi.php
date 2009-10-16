@@ -198,6 +198,9 @@
 
         private function curlPost($url, $post_vars = null, $referer = null, $headers = null)
         {
+            if(is_null($post_vars))
+                $post_vars = '';
+
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_COOKIEFILE, $this->tmpFile);
@@ -208,7 +211,7 @@
             curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_1; en-us) AppleWebKit/531.9 (KHTML, like Gecko) Version/4.0.3 Safari/531.9");
             if(!is_null($referer)) curl_setopt($ch, CURLOPT_REFERER, $referer);
             curl_setopt($ch, CURLOPT_POST, true);
-            if(!is_null($post_vars)) curl_setopt($ch, CURLOPT_POSTFIELDS, $post_vars);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $post_vars);
             if(!is_null($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
             curl_setopt($ch, CURLOPT_HEADER, true);

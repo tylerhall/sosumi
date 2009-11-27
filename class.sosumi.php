@@ -16,6 +16,7 @@
 
     class Sosumi
     {
+        public $authenticated; // True if we logged in successfully
         public $devices;   // An array of all devices on this MobileMe account
         private $lastURL;  // The previous URL as visited by curl
         private $tmpFile;  // Where we store our cookies
@@ -27,6 +28,7 @@
             $this->tmpFile = tempnam('/tmp', 'sosumi');
             $this->lsc     = array();
             $this->devices = array();
+            $this->authenticated = false;
 
             // Load the HTML login page and also get the init cookies set
             $html = $this->curlGet("https://auth.me.com/authenticate?service=account&ssoNamespace=primary-me&reauthorize=Y&returnURL=aHR0cHM6Ly9zZWN1cmUubWUuY29tL2FjY291bnQvI2ZpbmRteWlwaG9uZQ==&anchor=findmyiphone");
@@ -48,7 +50,11 @@
             $headers = array('X-Mobileme-Version: 1.0');
             $html = $this->curlGet('https://secure.me.com/wo/WebObjects/Account2.woa?lang=en&anchor=findmyiphone', $this->lastURL, $headers);
 
-            $this->getDevices();
+            if(count($this->lsc) > 0)
+            {
+                $this->authenticated = true;
+                $this->getDevices();
+            }
         }
 
         public function __destruct()

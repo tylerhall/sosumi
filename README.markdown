@@ -1,7 +1,7 @@
 Sosumi
 =========
 
-A MobileMe web scraper that exposes Apple's Find My iPhone service to the command line. This allows you to programmatically retrieve your phone's current location and push messages (and an optional alarm) to the remote device.
+A PHP client for Apple's Find My iPhone service. This allows you to programmatically retrieve your phone's current location and push messages (and an optional alarm) to the remote device.
 
 The previous version of Sosumi (June 2009 - June 20, 2010) scraped MobileMe's website to determine your location information. However, with Apple's recently released "Find My iPhone" app, we can piggy-back on their "official" web service and pull your information much faster and more reliably as it's not prone to breaking whenever there's a website update. I highly recommend upgrading to the new version.
 

@@ -21,7 +21,7 @@
 		$db = mysql_connect('localhost', 'root', '');
 		mysql_select_db('sosumi', $db) or die(mysql_error());
 
-		$dt = date('Y-m-d H:i:s', strtotime($loc->date . ' ' . $loc->time));
+		$dt = date('Y-m-d H:i:s');
 		$lat = mysql_real_escape_string($loc->latitude, $db);
 		$lng = mysql_real_escape_string($loc->longitude, $db);
 

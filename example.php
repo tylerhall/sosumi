@@ -53,7 +53,7 @@
                 var map = new GMap2(document.getElementById("map_canvas"));
                 map.setUIToDefault();
 
-                var point = new GLatLng(<?PHP echo $loc->latitude; ?>, <?PHP echo $loc->longitude; ?>);
+                var point = new GLatLng(<?PHP echo $loc['latitude']; ?>, <?PHP echo $loc['longitude']; ?>);
                 map.addOverlay(createMarker(point, "Your Location"));
             }
         }

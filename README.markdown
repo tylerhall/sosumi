@@ -27,6 +27,13 @@ UPDATES
 
 Code is hosted at GitHub: [http://github.com/tylerhall/sosumi](http://github.com/tylerhall/sosumi)
 
+OTHER LANGUAGES / RELATED PROJECTS
+----------------------------------
+
+ * Node.js port - [http://github.com/drudge/node-sosumi](http://github.com/drudge/node-sosumi)
+ * Ruby port - [http://github.com/hpop/rosumi](http://github.com/hpop/rosumi)
+ * PlayNice - Automatically update your Google Latitude location using Sosumi [http://github.com/ablyler/playnice](http://github.com/ablyler/playnice)
+
 LICENSE
 -------
 

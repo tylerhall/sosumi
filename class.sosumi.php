@@ -107,7 +107,7 @@
                 $device = new SosumiDevice();
                 if(isset($json_device->location) && is_object($json_device->location))
                 {
-                    $device->locationTimestamp  = date('Y-m-d G:i:s', $json_device->location->timeStamp / 1000);
+                    $device->locationTimestamp  = date('Y-m-d H:i:s', $json_device->location->timeStamp / 1000);
                     $device->locationType       = $json_device->location->positionType;
                     $device->horizontalAccuracy = $json_device->location->horizontalAccuracy;
                     $device->locationFinished   = $json_device->location->locationFinished;

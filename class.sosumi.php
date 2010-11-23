@@ -17,6 +17,7 @@
         public $debug;
         private $username;
         private $password;
+        private $curl_resource;
 
         public function __construct($mobile_me_username, $mobile_me_password, $debug = false)
         {
@@ -88,9 +89,24 @@
 
         private function updateDevices()
         {
-            $post     = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.1","buildVersion":"99","deviceUDID":"0cf3dc491ff812adb0b202baed4f94873b210853","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPhone3,1"}}';
-            $this->iflog('Updating devices...');
-            $json_str = $this->curlPost("https://fmipmobile.me.com/fmipservice/device/$this->username/initClient", $post);
+            do
+            {
+                $post     = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.1","buildVersion":"99","deviceUDID":"0cf3dc491ff812adb0b202baed4f94873b210853","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPhone3,1"}}';
+                $this->iflog('Updating devices...');
+                $json_str = $this->curlPost("https://fmipmobile.me.com/fmipservice/device/$this->username/initClient", $post);
+
+                if(curl_getinfo($this->curl_resource, CURLINFO_HTTP_CODE) == 330)
+                {
+                    $this->iflog('Received 330 from MobileMe, trying again');
+                    sleep(5);
+                    continue;
+                }
+                elseif(curl_getinfo($this->curl_resource, CURLINFO_HTTP_CODE) != 200)
+                {
+                    throw new Exception("Error from web service: [" . curl_getinfo($this->curl_resource, CURLINFO_HTTP_CODE) . "] '$json_str'");
+                }
+            } while (curl_getinfo($this->curl_resource, CURLINFO_HTTP_CODE) == 330);
+
             $this->iflog('Device updates received');
             $json     = json_decode($json_str);
 
@@ -139,19 +155,19 @@
             $headers[] = 'Pragma: no-cache';
             $headers[] = 'Connection: keep-alive';
 
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Find iPhone/1.1 MeKit (iPhone: iPhone OS/4.2.1)');
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $post_vars);
-            if(!is_null($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            $this->curl_resource = curl_init($url);
+            curl_setopt($this->curl_resource, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($this->curl_resource, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($this->curl_resource, CURLOPT_AUTOREFERER, true);
+            curl_setopt($this->curl_resource, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($this->curl_resource, CURLOPT_USERAGENT, 'Find iPhone/1.1 MeKit (iPhone: iPhone OS/4.2.1)');
+            curl_setopt($this->curl_resource, CURLOPT_POST, true);
+            curl_setopt($this->curl_resource, CURLOPT_POSTFIELDS, $post_vars);
+            if(!is_null($headers)) curl_setopt($this->curl_resource, CURLOPT_HTTPHEADER, $headers);
 
-            // curl_setopt($ch, CURLOPT_VERBOSE, true);
+            // curl_setopt($this->curl_resource, CURLOPT_VERBOSE, true);
 
-            return curl_exec($ch);
+            return curl_exec($this->curl_resource);
         }
 
         private function iflog($str)

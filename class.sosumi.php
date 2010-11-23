@@ -88,7 +88,7 @@
 
         private function updateDevices()
         {
-            $post     = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.0","buildVersion":"57","deviceUDID":"0cf3dc989ff812adb0b202baed4f37274b210853","inactiveTime":2147483647,"osVersion":"3.2","productType":"iPad1,1"}}';
+            $post     = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.1","buildVersion":"99","deviceUDID":"0cf3dc491ff812adb0b202baed4f94873b210853","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPhone3,1"}}';
             $this->iflog('Updating devices...');
             $json_str = $this->curlPost("https://fmipmobile.me.com/fmipservice/device/$this->username/initClient", $post);
             $this->iflog('Device updates received');
@@ -129,17 +129,22 @@
         private function curlPost($url, $post_vars = '', $headers = array())
         {
             $headers[] = 'Authorization: Basic ' . base64_encode($this->username . ':' . $this->password);
+            $headers[] = 'X-Apple-Find-Api-Ver: 2.0';
+            $headers[] = 'X-Apple-Authscheme: UserIdGuest';
             $headers[] = 'X-Apple-Realm-Support: 1.0';
             $headers[] = 'Content-Type: application/json; charset=utf-8';
-            $headers[] = 'X-Client-Name: Steve\'s iPad';
+            $headers[] = 'X-Client-Name: Steve?s iPhone';
             $headers[] = 'X-Client-Uuid: 0cf3dc491ff812adb0b202baed4f94873b210853';
+            $headers[] = 'Accept-Language: en-us';
+            $headers[] = 'Pragma: no-cache';
+            $headers[] = 'Connection: keep-alive';
 
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_AUTOREFERER, true);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_USERAGENT, "Find iPhone/1.0 (iPad: iPhone OS/3.2");
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Find iPhone/1.1 MeKit (iPhone: iPhone OS/4.2.1)');
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $post_vars);
             if(!is_null($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);

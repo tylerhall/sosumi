@@ -1,35 +1,51 @@
 <?PHP
-    // Sosumi - a Find My iPhone web scraper.
+    // Sosumi - a PHP client for Apple's Find My iPhone web service
     //
-    // June 22, 2009
+    // June 20, 2010
     // Tyler Hall <tylerhall@gmail.com>
     // http://github.com/tylerhall/sosumi/tree/master
     //
     // Usage:
     // $ssm = new Sosumi('username', 'password');
-    // $location_info = $ssm->locate();
-    // $ssm->sendMessage('Daisy, daisy...');
+    // $location_info = $ssm->locate(<device number>);
+    // $ssm->sendMessage(<device number>, 'Your Subject', 'Your Message');
     //
 
     class Sosumi
     {
-        public $authenticated; // True if we logged in successfully
-        public $devices;   // An array of all devices on this MobileMe account
-        private $lastURL;  // The previous URL as visited by curl
-        private $tmpFile;  // Where we store our cookies
-        private $lsc;      // Associative array of Apple auth tokens
-		private $username;
+        public $devices;
+        public $debug;
+        private $username;
+        private $password;
+        private $inactiveTime;
+        private $nextPollTime;
+        private $lastStatus;
+        private $lastURL;
+        private $cookieFile;
 
-        public function __construct($mobile_me_username, $mobile_me_password)
+        public function __construct($mobile_me_username, $mobile_me_password, $debug = false)
         {
-            $this->tmpFile = tempnam('/tmp', 'sosumi');
+            // Set the properties
+            $this->devices  = array();
+            $this->debug    = $debug;
+            $this->username = $mobile_me_username;
+            $this->password = $mobile_me_password;
+            $this->inactiveTime = 0;
+            $this->nextPollTime = time();
+            $this->clientContext = array(
+                "appName" => "MobileMe Find (Web)",
+                "appVersion" => "1.0",
+                );
+
+            // Login to MobileMe
+            $this->cookieFile = tempnam('/tmp', 'sosumi');
             $this->lsc     = array();
             $this->devices = array();
             $this->authenticated = false;
-			$this->username = $mobile_me_username;
+            $this->username = $mobile_me_username;
 
             // Load the HTML login page and also get the init cookies set
-	        $html = $this->curlGet('https://auth.me.com/authenticate?service=findmyiphone&ssoNamespace=primary-me&reauthorize=Y&returnURL=aHR0cHM6Ly9zZWN1cmUubWUuY29tL2ZpbmQv&anchor=findmyiphone', 'https://secure.me.com/find/');
+            $html = $this->curlGet('https://auth.me.com/authenticate?service=findmyiphone&ssoNamespace=appleid&formID=loginForm&returnURL=aHR0cHM6Ly9tZS5jb20vZmluZC8=&anchor=findmyiphone&lang=en', $this->lastURL);
 
             // Parse out the hidden fields
             preg_match_all('!hidden.*?name=["\'](.*?)["\'].*?value=["\'](.*?)["\']!ms', $html, $hidden);
@@ -42,91 +58,115 @@
 
             // Login
             $action_url = $this->match('!action=["\'](.*?)["\']!ms', $html, 1);
-            $html = $this->curlPost('https://auth.me.com/authenticate', $post, $this->lastURL);
-            $html = $this->curlGet('https://secure.me.com/find/', $this->lastURL);
+            $html = $this->curlPost($action_url, $post, $this->lastURL);
 
-            $headers = array(
-                "X-Requested-With: XMLHttpRequest",
-                "X-SproutCore-Version: 1.0",
-                "X-Mobileme-Version: 1.0",
-                "X-Inactive-Time: 1187",
-                );
-
-            $html = $this->curlPost('https://secure.me.com/fmipservice/client/initClient', '{"clientContext":{"appName":"MobileMe Find (Web)","appVersion":"1.0"}}', $this->lastURL, $headers);
-
-            if(count($this->lsc) > 0)
+            if ($this->lastStatus != "200")
             {
-                $this->authenticated = true;
-                $this->getDevices();
+                throw new Exception("Unable to login to MobileMe");
             }
+
+            // Obtain the partition value from the cookie store
+            $this->partition = $this->match('/nc-partition\s+(p\d+)/', file_get_contents($this->cookieFile), 1);
+
+            $this->updateDevices();
+
+            // Obtain the ISC value from the cookie store
+            $this->isc = $this->match('!lsc-findmyiphone\s+(.*?)\s+!ms', file_get_contents($this->cookieFile), 1);
         }
 
-        public function __destruct()
+        public function locate($device_num = 0, $max_wait = 300)
         {
-            if(file_exists($this->tmpFile))
-                unlink($this->tmpFile);
+            $start = time();
+
+            // Loop until the device has been located...
+            while($this->devices[$device_num]->deviceStatus != 200 && $this->devices[$device_num]->isLocating == true)
+            {
+                $this->iflog('Waiting for location... (current status: ' . $this->devices[$device_num]->deviceStatus . ')');
+                if((time() - $start) > $max_wait)
+                {
+                    throw new Exception("Unable to find location within '$max_wait' seconds\n");
+                }
+
+                sleep(10);
+
+                $this->iflog('Updating location...');
+                $post = json_encode(array('serverContext' => $this->serverContext, 'clientContext' => $this->clientContext));
+                $json_str = $this->curlPost('https://' . $this->partition . '-fmipweb.me.com/fmipservice/client/refreshClient', $post, 'https://' . $this->partition . '-fmipweb.me.com/find/resources/frame.html');
+                $this->iflog('Rocation updates received');
+                $this->parseJsonResponse($json_str);
+            }
+
+            $loc = array(
+                        "latitude"  => $this->devices[$device_num]->latitude,
+                        "longitude" => $this->devices[$device_num]->longitude,
+                        "accuracy"  => $this->devices[$device_num]->horizontalAccuracy,
+                        "timestamp" => $this->devices[$device_num]->locationTimestamp,
+                        );
+
+            return $loc;
         }
 
-        public function locate($device_number = 0)
+        private function updateDevices()
         {
-			return $this->devices[$device_number]->location;
+            $this->iflog('Updating devices...');
+            $post = json_encode(array('clientContext' => $this->clientContext));
+            $json_str = $this->curlPost('https://' . $this->partition . '-fmipweb.me.com/fmipservice/client/initClient', $post, 'https://' . $this->partition . '-fmipweb.me.com/find/resources/frame.html');
+            $this->iflog('Device updates received');
+            $this->parseJsonResponse($json_str);
         }
 
-        // Send a message to the device with an optional alarm sound
-        public function sendMessage($msg, $alarm = false, $device_number = 0, $subject = 'Important Message')
+        private function parseJsonResponse($json_str)
         {
-            $the_device = $this->devices[$device_number];
+            $json = json_decode($json_str);
 
-			$json = sprintf('{"device":"%s","text":"%s","sound":%s,"subject":"%s","serverContext":{"prefsUpdateTime":1276872996660,"timezone":{"tzCurrentName":"Pacific Daylight Time","previousTransition":1268560799999,"previousOffset":-28800000,"currentOffset":-25200000,"tzName":"America/Los_Angeles"},"callbackIntervalInMS":10000,"maxDeviceLoadTime":60000,"validRegion":true,"maxLocatingTime":90000,"hasDevices":true,"sessionLifespan":900000,"deviceLoadStatus":200,"clientId":"","lastSessionExtensionTime":"1276872334744_1276873014045","preferredLanguage":"en","id":"server_ctx"},"clientContext":{"appName":"MobileMe Find (Web)","appVersion":"1.0"}}',
-			                $the_device->id, $msg, $alarm ? 'true' : 'false', $subject);
+            if(is_null($json))
+                throw new Exception("Error parsing json string");
 
-            $headers = array('Content-Type: application/json: charset=UTF-8',
-                             'X-Inactive-Time: 1187',
-                             'X-Requested-With: XMLHttpRequest',
-                             'X-Prototype-Version: 1.6.0.3',
-                             'Content-Type: application/json; charset=UTF-8',
-                             'X-Mobileme-User: ' . $this->username,
-                             'X-Mobileme-Version: 1.0',
-                             'X-Sproutcore-Version: 1.0',
-                             'X-Mobileme-Isc: ' . $this->lsc['secure.me.com']);
+            if(isset($json->error))
+                throw new Exception("Error from web service: '$json->error'");
 
-            $html = $this->curlPost('https://secure.me.com/fmipservice/client/sendMessage', $json, 'https://secure.me.com/find/', $headers);
+            $this->devices = array();
+            $this->iflog('Parsing ' . count($json->content) . ' devices...');
+            foreach($json->content as $json_device)
+            {
+                $device = new SosumiDevice();
+                if(isset($json_device->location) && is_object($json_device->location))
+                {
+                    $device->locationTimestamp  = date('Y-m-d H:i:s', $json_device->location->timeStamp / 1000);
+                    $device->locationType        = $json_device->location->positionType;
+                    $device->horizontalAccuracy = $json_device->location->horizontalAccuracy;
+                    $device->locationFinished   = $json_device->location->locationFinished;
+                    $device->longitude          = $json_device->location->longitude;
+                    $device->latitude           = $json_device->location->latitude;
+                    $device->locationOld        = $json_device->location->isOld;
+                }
+                $device->isLocating     = $json_device->isLocating;
+                $device->deviceModel    = $json_device->deviceModel;
+                $device->deviceStatus   = $json_device->deviceStatus;
+                $device->id             = $json_device->id;
+                $device->name           = $json_device->name;
+                $device->deviceClass    = $json_device->deviceClass;
+                $device->chargingStatus = $json_device->a;
+                $device->batteryLevel   = $json_device->b;
+                $this->devices[]        = $device;
+            }
 
-            $json = json_decode(array_pop(explode("\n", $html)));
-            return ($json !== false) && isset($json->statusString) && ($json->statusString == 'message sent');
-        }
+            $this->serverContext = $json->serverContext;
 
-        public function remoteWipe()
-        {
-            // Remotely wiping a device is an exercise best
-            // left to the reader.
-        }
-
-        private function getDevices()
-        {
-            $headers = array('Accept: text/javascript, text/html, application/xml, text/xml, */*',
-                             'X-Requested-With: XMLHttpRequest',
-                             'X-Mobileme-Version: 1.0',
-                             'X-SproutCore-Version: 1.0',
-                             'X-Mobileme-Isc: ' . $this->lsc['secure.me.com']);
-            $html = $this->curlPost('https://secure.me.com/fmipservice/client/refreshClient', null, 'https://secure.me.com/find/', $headers, false);
-
-            // Convert the raw json into an json object
-            $json = json_decode($html);
-
-            // Grab all of the devices
-            $this->devices = $json->content;
+            // Update the timezone offset
+            $this->timezoneSource = $json->serverContext->timezone->tzName;
+            $this->timezoneDestination = date_default_timezone_get();
         }
 
         private function curlGet($url, $referer = null, $headers = null)
         {
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_COOKIEFILE, $this->tmpFile);
-            curl_setopt($ch, CURLOPT_COOKIEJAR, $this->tmpFile);
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookieFile);
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookieFile);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
             curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_1; en-us) AppleWebKit/531.9 (KHTML, like Gecko) Version/4.0.3 Safari/531.9");
             if(!is_null($referer)) curl_setopt($ch, CURLOPT_REFERER, $referer);
             if(!is_null($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -142,53 +182,87 @@
             }
 
             $this->lastURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-
-            preg_match_all('/[li]sc-(.*?)=([a-f0-9]+);/i', $html, $matches);
-            for($i = 0; $i < count($matches[0]); $i++)
-                $this->lsc[$matches[1][$i]] = $matches[2][$i];
+            $this->lastStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
             return $html;
         }
 
-        private function curlPost($url, $post_vars = null, $referer = null, $headers = null, $return_headers = true)
+        private function curlPost($url, $post_vars = '', $referer = null)
         {
-            if(is_null($post_vars))
-                $post_vars = '';
+            $headers[] = 'Accept: */*';
+            $headers[] = 'Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3';
+            $headers[] = 'Accept-Encoding: gzip,deflate,sdch';
+            $headers[] = 'Accept-Language: en-US,en;q=0.8';
+            $headers[] = 'Connection: keep-alive';
+
+            if (isset($this->partition) && strpos($url, 'fmipweb.me.com'))
+            {
+                $headers[] = 'Origin: https://' . $this->partition . '-fmipweb.me.com';
+                $headers[] = 'Content-Type: application/json';
+                $headers[] = 'X-Requested-With: XMLHttpRequest';
+                $headers[] = 'X-SproutCore-Version: 1.0';
+                $headers[] = 'X-Mobileme-Version: 1.0';
+                $headers[] = 'X-Inactive-Time: ' . ($this->inactiveTime += rand(1, 90) * 1000);
+            }
+
+            if (isset($this->isc))
+                $headers[] = 'X-Mobileme-Isc: ' . $this->isc;
+
+            if (isset($this->serverContext->prsId))
+                $headers[] = 'X-Mobileme-User: ' . $this->serverContext->prsId;
 
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_COOKIEFILE, $this->tmpFile);
-            curl_setopt($ch, CURLOPT_COOKIEJAR, $this->tmpFile);
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $this->cookieFile);
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $this->cookieFile);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_AUTOREFERER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
             curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_1; en-us) AppleWebKit/531.9 (KHTML, like Gecko) Version/4.0.3 Safari/531.9");
-            if(!is_null($referer)) curl_setopt($ch, CURLOPT_REFERER, $referer);
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $post_vars);
             if(!is_null($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-            if($return_headers) curl_setopt($ch, CURLOPT_HEADER, true);
             // curl_setopt($ch, CURLOPT_VERBOSE, true);
 
             $html = curl_exec($ch);
 
-            if(curl_errno($ch) != 0)
-            {
-                throw new Exception("Error during POST of '$url': " . curl_error($ch));
-            }
-
             $this->lastURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-
-            preg_match_all('/[li]sc-(.*?)=([a-f0-9]+);/i', $html, $matches);
-            for($i = 0; $i < count($matches[0]); $i++)
-                $this->lsc[$matches[1][$i]] = $matches[2][$i];
+            $this->lastStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
             return $html;
+        }
+
+        private function iflog($str)
+        {
+            if($this->debug === true)
+                echo $str . "\n";
         }
 
         private function match($regex, $str, $i = 0)
         {
             return preg_match($regex, $str, $match) == 1 ? $match[$i] : false;
         }
+    }
+
+    class SosumiDevice
+    {
+        public $isLocating;
+        public $locationTimestamp;
+        public $locationType;
+        public $horizontalAccuracy;
+        public $locationFinished;
+        public $longitude;
+        public $latitude;
+        public $deviceModel;
+        public $deviceStatus;
+        public $id;
+        public $name;
+        public $deviceClass;
+
+        // These values only recently appeared in Apple's JSON response.
+        // Their final names will probably change to something other than
+        // 'a' and 'b'.
+        public $chargingStatus; // location->a
+        public $batteryLevel; // location->b
     }

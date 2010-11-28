@@ -11,9 +11,6 @@
     // $ssm->sendMessage(<device number>, 'Your Subject', 'Your Message');
     //
 
-$ssm = new Sosumi('tylerhall@me.com', 'bosco621');
-print_r($ssm);
-
     class Sosumi
     {
         public $devices;

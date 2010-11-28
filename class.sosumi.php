@@ -4,12 +4,12 @@
     // June 20, 2010
     // Tyler Hall <tylerhall@gmail.com>
     // http://github.com/tylerhall/sosumi/tree/master
-    //
+    //  
     // Usage:
     // $ssm = new Sosumi('username', 'password');
     // $location_info = $ssm->locate(<device number>);
     // $ssm->sendMessage(<device number>, 'Your Subject', 'Your Message');
-    //
+    //   
 
     class Sosumi
     {
@@ -203,3 +203,5 @@
         public $chargingStatus; // location->a
         public $batteryLevel; // location->b
     }
+
+

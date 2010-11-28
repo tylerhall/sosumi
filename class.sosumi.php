@@ -11,13 +11,16 @@
     // $ssm->sendMessage(<device number>, 'Your Subject', 'Your Message');
     //
 
+$ssm = new Sosumi('tylerhall@me.com', 'bosco621');
+print_r($ssm);
+
     class Sosumi
     {
         public $devices;
         public $debug;
         private $username;
         private $password;
-        private $curl_resource;
+        private $partition;
 
         public function __construct($mobile_me_username, $mobile_me_password, $debug = false)
         {
@@ -25,7 +28,17 @@
             $this->debug    = $debug;
             $this->username = $mobile_me_username;
             $this->password = $mobile_me_password;
+            $this->getPartition();
             $this->updateDevices();
+        }
+
+        private function getPartition()
+        {
+            $this->iflog('Getting partition...');
+            $post = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.1","buildVersion":"99","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPad1,1"}}';
+            $response = $this->curlPost("/fmipservice/device/{$this->username}/initClient", $post, array(), true);
+            preg_match('/MMe-Host:(.*?)$/msi', $response, $matches);
+            $this->partition = trim($matches[1]);
         }
 
         public function locate($device_num = 0, $max_wait = 300)
@@ -57,58 +70,43 @@
 
         public function sendMessage($msg, $alarm = false, $device_num = 0, $subject = 'Important Message')
         {
-            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.0","buildVersion":"57","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true},"sound":%s,"subject":"%s","text":"%s"}',
+            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.1","buildVersion":"99","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true},"sound":%s,"subject":"%s","text":"%s"}',
                                 $this->devices[$device_num]->id, $this->devices[$device_num]->id,
                                 $alarm ? 'true' : 'false', $subject, $msg);
 
             $this->iflog('Sending message...');
-            $this->curlPost("https://fmipmobile.me.com/fmipservice/device/$mobile_me_username/sendMessage", $post);
+            $this->curlPost("/fmipservice/device/{$this->username}/sendMessage", $post);
             $this->iflog('Message sent');
         }
 
         public function remoteLock($passcode, $device_num = 0)
         {
-            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.0","buildVersion":"57","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","oldPasscode":"","passcode":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true}}',
+            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.1","buildVersion":"99","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","oldPasscode":"","passcode":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true}}',
                                 $this->devices[$device_num]->id, $this->devices[$device_num]->id, $passcode);
 
             $this->iflog('Sending remote lock...');
-            $this->curlPost("https://fmipmobile.me.com/fmipservice/device/$mobile_me_username/remoteLock", $post);
+            $this->curlPost("/fmipservice/device/{$this->username}/remoteLock", $post);
             $this->iflog('Remote lock sent');
         }
 
         // This hasn't been tested (for obvious reasons). Please let me know if it does/doesn't work...
         public function remoteWipe($device_num = 0)
         {
-            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.0","buildVersion":"57","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","oldPasscode":"","passcode":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true}}',
+            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.1","buildVersion":"99","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","oldPasscode":"","passcode":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true}}',
                                 $this->devices[$device_num]->id, $this->devices[$device_num]->id, $passcode);
 
             $this->iflog('Sending remote wipe...');
-            $this->curlPost("https://fmipmobile.me.com/fmipservice/device/$mobile_me_username/remoteWipe", $post);
+            $this->curlPost("/fmipservice/device/{$this->username}/remoteWipe", $post);
             $this->iflog('Remote wipe sent');
         }
 
         private function updateDevices()
         {
-            do
-            {
-                $post     = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.1","buildVersion":"99","deviceUDID":"0cf3dc491ff812adb0b202baed4f94873b210853","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPhone3,1"}}';
-                $this->iflog('Updating devices...');
-                $json_str = $this->curlPost("https://fmipmobile.me.com/fmipservice/device/$this->username/initClient", $post);
-
-                if(curl_getinfo($this->curl_resource, CURLINFO_HTTP_CODE) == 330)
-                {
-                    $this->iflog('Received 330 from MobileMe, trying again');
-                    sleep(5);
-                    continue;
-                }
-                elseif(curl_getinfo($this->curl_resource, CURLINFO_HTTP_CODE) != 200)
-                {
-                    throw new Exception("Error from web service: [" . curl_getinfo($this->curl_resource, CURLINFO_HTTP_CODE) . "] '$json_str'");
-                }
-            } while (curl_getinfo($this->curl_resource, CURLINFO_HTTP_CODE) == 330);
-
-            $this->iflog('Device updates received');
-            $json     = json_decode($json_str);
+            $this->iflog('updateDevices...');
+            $post = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.1","buildVersion":"99","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPad1,1"}}';
+            $json_str = $this->curlPost("/fmipservice/device/{$this->username}/initClient", $post);
+            $this->iflog('updateDevices Returned: ' . $json_str);
+            $json = json_decode($json_str);
 
             if(is_null($json))
                 throw new Exception("Error parsing json string");
@@ -142,32 +140,42 @@
             }
         }
 
-        private function curlPost($url, $post_vars = '', $headers = array())
+        private function curlPost($url, $post_vars = '', $headers = array(), $return_headers = false)
         {
-            $headers[] = 'Authorization: Basic ' . base64_encode($this->username . ':' . $this->password);
+            if(isset($this->partition))
+                $url = 'https://' . $this->partition . $url;
+            else
+                $url = 'https://fmipmobile.me.com' . $url;
+
+            $this->iflog("URL: $url");
+            $this->iflog("POST DATA: $post_vars");
+
+            $headers[] = 'Content-Type: application/json; charset=utf-8';
             $headers[] = 'X-Apple-Find-Api-Ver: 2.0';
             $headers[] = 'X-Apple-Authscheme: UserIdGuest';
             $headers[] = 'X-Apple-Realm-Support: 1.0';
-            $headers[] = 'Content-Type: application/json; charset=utf-8';
-            $headers[] = 'X-Client-Name: Steve?s iPhone';
-            $headers[] = 'X-Client-Uuid: 0cf3dc491ff812adb0b202baed4f94873b210853';
+            $headers[] = 'User-agent: Find iPhone/1.1 MeKit (iPad: iPhone OS/4.2.1)';
+            $headers[] = 'X-Client-Name: iPad';
+            $headers[] = 'X-Client-Uuid: 0cf3dc501ff812adb0b202baed4f37274b210853';
             $headers[] = 'Accept-Language: en-us';
-            $headers[] = 'Pragma: no-cache';
-            $headers[] = 'Connection: keep-alive';
+            $headers[] = "Connection: keep-alive";
 
-            $this->curl_resource = curl_init($url);
-            curl_setopt($this->curl_resource, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($this->curl_resource, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($this->curl_resource, CURLOPT_AUTOREFERER, true);
-            curl_setopt($this->curl_resource, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($this->curl_resource, CURLOPT_USERAGENT, 'Find iPhone/1.1 MeKit (iPhone: iPhone OS/4.2.1)');
-            curl_setopt($this->curl_resource, CURLOPT_POST, true);
-            curl_setopt($this->curl_resource, CURLOPT_POSTFIELDS, $post_vars);
-            if(!is_null($headers)) curl_setopt($this->curl_resource, CURLOPT_HTTPHEADER, $headers);
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_USERPWD, $this->username . ':' . $this->password);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $post_vars);
+            if(!is_null($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-            // curl_setopt($this->curl_resource, CURLOPT_VERBOSE, true);
+            // curl_setopt($ch, CURLOPT_VERBOSE, true);
 
-            return curl_exec($this->curl_resource);
+            if($return_headers)
+                curl_setopt($ch, CURLOPT_HEADER, true);
+
+            return curl_exec($ch);
         }
 
         private function iflog($str)

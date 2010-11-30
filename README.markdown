@@ -7,7 +7,7 @@ The previous version of Sosumi (June 2009 - June 20, 2010) scraped MobileMe's we
 
 Much love to the MobileMe team for a wonderful service :-)
 
-*Looking for the Mac desktop version of Sosumi?* [Click here](https://github.com/tylerhall/MacSosumi).
+**Looking for the Mac desktop version of Sosumi?** [Click here](https://github.com/tylerhall/MacSosumi).
 
 FEATURES
 --------

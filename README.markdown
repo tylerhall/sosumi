@@ -32,6 +32,7 @@ Code is hosted at GitHub: [http://github.com/tylerhall/sosumi](http://github.com
 OTHER LANGUAGES / RELATED PROJECTS
 ----------------------------------
 
+ * Python port - [https://github.com/comfuture/recordmylatitude](https://github.com/comfuture/recordmylatitude)
  * Node.js port - [http://github.com/drudge/node-sosumi](http://github.com/drudge/node-sosumi)
  * Ruby port - [http://github.com/hpop/rosumi](http://github.com/hpop/rosumi)
  * PlayNice - Automatically update your Google Latitude location using Sosumi [http://github.com/ablyler/playnice](http://github.com/ablyler/playnice)
@@ -41,7 +42,7 @@ LICENSE
 
 The MIT License
 
-Copyright (c) 2009 Tyler Hall <tylerhall AT gmail DOT com>
+Copyright (c) 2011 Tyler Hall <tylerhall AT gmail DOT com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -8,7 +8,7 @@
     // Usage:
     // $ssm = new Sosumi('username', 'password');
     // $location_info = $ssm->locate(<device number>);
-    // $ssm->sendMessage(<device number>, 'Your Subject', 'Your Message');
+    // $ssm->sendMessage('Your Message', true, <device number>, 'Important Message');
     //   
 
     class Sosumi

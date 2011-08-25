@@ -36,7 +36,7 @@
         private function getPartition()
         {
             $this->iflog('Getting partition...');
-            $post = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.2","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPad1,1"}}';
+            $post = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.2.1","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPad1,1"}}';
             $response = $this->curlPost("/fmipservice/device/{$this->username}/initClient", $post, array(), true);
             preg_match('/MMe-Host:(.*?)$/msi', $response, $matches);
             $this->partition = trim($matches[1]);
@@ -71,7 +71,7 @@
 
         public function sendMessage($msg, $alarm = false, $device_num = 0, $subject = 'Important Message')
         {
-            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.2","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true},"sound":%s,"subject":"%s","text":"%s"}',
+            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.2.1","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true},"sound":%s,"subject":"%s","text":"%s"}',
                                 $this->devices[$device_num]->id, $this->devices[$device_num]->id,
                                 $alarm ? 'true' : 'false', $subject, $msg);
 
@@ -82,7 +82,7 @@
 
         public function remoteLock($passcode, $device_num = 0)
         {
-            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.2","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","oldPasscode":"","passcode":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true}}',
+            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.2.1","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","oldPasscode":"","passcode":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true}}',
                                 $this->devices[$device_num]->id, $this->devices[$device_num]->id, $passcode);
 
             $this->iflog('Sending remote lock...');
@@ -93,7 +93,7 @@
         // This hasn't been tested (for obvious reasons). Please let me know if it does/doesn't work...
         public function remoteWipe($device_num = 0)
         {
-            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.2","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","oldPasscode":"","passcode":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true}}',
+            $post = sprintf('{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.2.1","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":5911,"osVersion":"3.2","productType":"iPad1,1","selectedDevice":"%s","shouldLocate":false},"device":"%s","oldPasscode":"","passcode":"%s","serverContext":{"callbackIntervalInMS":3000,"clientId":"0000000000000000000000000000000000000000","deviceLoadStatus":"203","hasDevices":true,"lastSessionExtensionTime":null,"maxDeviceLoadTime":60000,"maxLocatingTime":90000,"preferredLanguage":"en","prefsUpdateTime":1276872996660,"sessionLifespan":900000,"timezone":{"currentOffset":-25200000,"previousOffset":-28800000,"previousTransition":1268560799999,"tzCurrentName":"Pacific Daylight Time","tzName":"America/Los_Angeles"},"validRegion":true}}',
                                 $this->devices[$device_num]->id, $this->devices[$device_num]->id, $passcode);
 
             $this->iflog('Sending remote wipe...');
@@ -104,7 +104,7 @@
         private function updateDevices()
         {
             $this->iflog('updateDevices...');
-            $post = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.2","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPad1,1"}}';
+            $post = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.2.1","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPad1,1"}}';
             $json_str = $this->curlPost("/fmipservice/device/{$this->username}/initClient", $post);
             $this->iflog('updateDevices Returned: ' . $json_str);
             $json = json_decode($json_str);
@@ -155,7 +155,7 @@
             $headers[] = 'X-Apple-Find-Api-Ver: 2.0';
             $headers[] = 'X-Apple-Authscheme: UserIdGuest';
             $headers[] = 'X-Apple-Realm-Support: 1.0';
-            $headers[] = 'User-agent: Find iPhone/1.2 MeKit (iPad: iPhone OS/4.2.1)';
+            $headers[] = 'User-agent: Find iPhone/1.2.1 MeKit (iPad: iPhone OS/4.2.1)';
             $headers[] = 'X-Client-Name: iPad';
             $headers[] = 'X-Client-UUID: 0cf3dc501ff812adb0b202baed4f37274b210853';
             $headers[] = 'Accept-Language: en-us';

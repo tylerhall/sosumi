@@ -1,11 +1,11 @@
 Sosumi
 =========
 
-A PHP client for Apple's Find My iPhone service. This allows you to programmatically retrieve your phone's current location and push messages (and an optional alarm) to the remote device.
+Sosumi is a PHP client for Apple's Find My iPhone service. This allows you to programmatically retrieve your devices's current location and push messages (and an optional alarm) to the remote device.
 
-The previous version of Sosumi (June 2009 - June 20, 2010) scraped MobileMe's website to determine your location information. However, with Apple's recently released "Find My iPhone" app, we can piggy-back on their "official" web service and pull your information much faster and more reliably as it's not prone to breaking whenever there's a website update. I highly recommend upgrading to the new version.
+The previous version of Sosumi (June 2009 - June 20, 2010) scraped MobileMe's website to determine your location information. However, with Apple's new (as of June 2010) [Find My iPhone app](http://itunes.apple.com/us/app/find-my-iphone/id376101648?mt=8), we can piggy-back on their "official" JSON web service and pull your information much faster and more reliably as it's not prone to breaking whenever there's a website update. I highly recommend upgrading to the new version.
 
-Much love to the MobileMe team for a wonderful service :-)
+Much love to the MobileMe/iCloud team for a wonderful service :-)
 
 **Looking for the Mac desktop version of Sosumi?** [Click here](https://github.com/tylerhall/MacSosumi).
 

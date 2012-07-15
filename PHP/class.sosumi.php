@@ -135,8 +135,8 @@
                 $device->id             = $json_device->id;
                 $device->name           = $json_device->name;
                 $device->deviceClass    = $json_device->deviceClass;
-                $device->chargingStatus = $json_device->a;
-                $device->batteryLevel   = $json_device->b;
+                $device->chargingStatus = $json_device->batteryStatus;
+                $device->batteryLevel   = $json_device->batteryLevel;
                 $this->devices[]        = $device;
             }
         }

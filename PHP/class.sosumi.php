@@ -39,7 +39,7 @@
             $post = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.4","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPad1,1"}}';
             $response = $this->curlPost("/fmipservice/device/{$this->username}/initClient", $post, array(), true);
             preg_match('/MMe-Host:(.*?)$/msi', $response, $matches);
-            $this->partition = trim($matches[1]);
+            if(isset($matches[1])) $this->partition = trim($matches[1]);
         }
 
         public function locate($device_num = 0, $max_wait = 300)
@@ -116,28 +116,30 @@
                 throw new Exception("Error from web service: '$json->error'");
 
             $this->devices = array();
-            $this->iflog('Parsing ' . count($json->content) . ' devices...');
-            foreach($json->content as $json_device)
-            {
-                $device = new SosumiDevice();
-                if(isset($json_device->location) && is_object($json_device->location))
+            if(isset($json) && isset($json->content) && (is_array($json->content) || is_object($json->content))){
+                $this->iflog('Parsing ' . count($json->content) . ' devices...');
+                foreach($json->content as $json_device)
                 {
-                    $device->locationTimestamp  = date('Y-m-d H:i:s', $json_device->location->timeStamp / 1000);
-                    $device->locationType       = $json_device->location->positionType;
-                    $device->horizontalAccuracy = $json_device->location->horizontalAccuracy;
-                    $device->locationFinished   = $json_device->location->locationFinished;
-                    $device->longitude          = $json_device->location->longitude;
-                    $device->latitude           = $json_device->location->latitude;
+                    $device = new SosumiDevice();
+                    if(isset($json_device->location) && is_object($json_device->location))
+                    {
+                        $device->locationTimestamp  = date('Y-m-d H:i:s', $json_device->location->timeStamp / 1000);
+                        $device->locationType       = $json_device->location->positionType;
+                        $device->horizontalAccuracy = $json_device->location->horizontalAccuracy;
+                        $device->locationFinished   = $json_device->location->locationFinished;
+                        $device->longitude          = $json_device->location->longitude;
+                        $device->latitude           = $json_device->location->latitude;
+                    }
+                    $device->isLocating     = $json_device->isLocating;
+                    $device->deviceModel    = $json_device->deviceModel;
+                    $device->deviceStatus   = $json_device->deviceStatus;
+                    $device->id             = $json_device->id;
+                    $device->name           = $json_device->name;
+                    $device->deviceClass    = $json_device->deviceClass;
+                    $device->chargingStatus = $json_device->batteryStatus;
+                    $device->batteryLevel   = $json_device->batteryLevel;
+                    $this->devices[]        = $device;
                 }
-                $device->isLocating     = $json_device->isLocating;
-                $device->deviceModel    = $json_device->deviceModel;
-                $device->deviceStatus   = $json_device->deviceStatus;
-                $device->id             = $json_device->id;
-                $device->name           = $json_device->name;
-                $device->deviceClass    = $json_device->deviceClass;
-                $device->chargingStatus = $json_device->batteryStatus;
-                $device->batteryLevel   = $json_device->batteryLevel;
-                $this->devices[]        = $device;
             }
         }
 

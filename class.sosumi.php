@@ -20,6 +20,7 @@
         private $username;
         private $password;
         private $partition;
+		private $prsId;
 
         public function __construct($mobile_me_username, $mobile_me_password, $debug = false)
         {
@@ -28,7 +29,8 @@
             $this->username = $mobile_me_username;
             $this->password = $mobile_me_password;
             $this->getPartition();
-            $this->updateDevices();
+            $this->initClient();
+			$this->refreshClient();
         }
 
         private function getPartition()
@@ -39,6 +41,13 @@
             preg_match('/MMe-Host:(.*?)$/msi', $response, $matches);
             if(isset($matches[1])) $this->partition = trim($matches[1]);
         }
+		
+		public function refreshClient()
+		{
+			$this->iflog('refreshClient ' . $this->prsId);
+            $post = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.4","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPad1,1"}}';
+            $response = $this->curlPost("/fmipservice/device/{$this->prsId}/refreshClient", $post, array(), true);
+		}
 
         public function locate($device_id, $max_wait = 300)
         {
@@ -54,7 +63,7 @@
                 }
 
                 sleep(5);
-                $this->updateDevices();
+                $this->initClient();
             }
 
             $loc = array(
@@ -99,12 +108,12 @@
             $this->iflog('Remote wipe sent');
         }
 
-        private function updateDevices()
+        private function initClient()
         {
-            $this->iflog('updateDevices...');
+            $this->iflog('initClient...');
             $post = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.4","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPad1,1"}}';
             $json_str = $this->curlPost("/fmipservice/device/{$this->username}/initClient", $post);
-            $this->iflog('updateDevices Returned: ' . $json_str);
+            $this->iflog('initClient Returned: ' . $json_str);
             $json = json_decode($json_str);
 
             if(is_null($json))
@@ -115,6 +124,9 @@
 
             $this->devices = array();
             if(isset($json) && isset($json->content) && (is_array($json->content) || is_object($json->content))){
+				
+				$this->prsId = $json->serverContext->prsId;
+				
                 $this->iflog('Parsing ' . count($json->content) . ' devices...');
                 foreach($json->content as $json_device)
                 {

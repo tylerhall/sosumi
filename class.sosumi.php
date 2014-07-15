@@ -1,13 +1,13 @@
 <?PHP
-	// https://twitter.com/#!/marcoarment/status/59089853433921537
-	date_default_timezone_set('America/Los_Angeles');
+    // https://twitter.com/#!/marcoarment/status/59089853433921537
+    date_default_timezone_set('America/Los_Angeles');
 
     // Sosumi - a PHP client for Apple's Find My iPhone web service
     //
     // June 20, 2010
     // Tyler Hall <tylerhall@gmail.com>
     // http://github.com/tylerhall/sosumi/tree/master
-    //  
+    //
     // Usage:
     // $ssm = new Sosumi('username', 'password');
     // $location_info = $ssm->locate(<device id>);
@@ -20,7 +20,7 @@
         private $username;
         private $password;
         private $partition;
-		private $prsId;
+        private $prsId;
 
         public function __construct($mobile_me_username, $mobile_me_password, $debug = false)
         {
@@ -30,7 +30,7 @@
             $this->password = $mobile_me_password;
             $this->getPartition();
             $this->initClient();
-			$this->refreshClient();
+            $this->refreshClient();
         }
 
         private function getPartition()
@@ -41,13 +41,13 @@
             preg_match('/MMe-Host:(.*?)$/msi', $response, $matches);
             if(isset($matches[1])) $this->partition = trim($matches[1]);
         }
-		
-		public function refreshClient()
-		{
-			$this->iflog('refreshClient ' . $this->prsId);
+
+        public function refreshClient()
+        {
+            $this->iflog('refreshClient ' . $this->prsId);
             $post = '{"clientContext":{"appName":"FindMyiPhone","appVersion":"1.4","buildVersion":"145","deviceUDID":"0000000000000000000000000000000000000000","inactiveTime":2147483647,"osVersion":"4.2.1","personID":0,"productType":"iPad1,1"}}';
             $response = $this->curlPost("/fmipservice/device/{$this->prsId}/refreshClient", $post, array(), true);
-		}
+        }
 
         public function locate($device_id, $max_wait = 300)
         {
@@ -124,9 +124,9 @@
 
             $this->devices = array();
             if(isset($json) && isset($json->content) && (is_array($json->content) || is_object($json->content))){
-				
-				$this->prsId = $json->serverContext->prsId;
-				
+
+                $this->prsId = $json->serverContext->prsId;
+
                 $this->iflog('Parsing ' . count($json->content) . ' devices...');
                 foreach($json->content as $json_device)
                 {
